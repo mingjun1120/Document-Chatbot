@@ -259,8 +259,8 @@ def main():
             if prompt != None and prompt.isspace() == False:
                 if st.session_state.docs != None and st.session_state.is_processed != None and st.session_state.is_vector_embeddings == True:
                     # result will be a dictionary of this format --> {"answer": "", "sources": ""}
-                    result = st.session_state.conversation_chain({"question": prompt}, return_only_outputs=True)
-                    assistant_response = result.get("answer") + '\n\n**Sources:** ' + result.get('sources')
+                    result = st.session_state.conversation_chain.invoke({"question": prompt})
+                    assistant_response = result.get("answer")
 
                     # Simulate stream of response with milliseconds delay
                     for chunk in assistant_response.split():
