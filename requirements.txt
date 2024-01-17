@@ -1,0 +1,15 @@
+faiss-cpu
+pypdf
+rapidocr-onnxruntime
+ipykernel
+langchain-openai
+langchain-google-genai
+langchain-community
+langchain
+openai
+tiktoken
+python-dotenv
+streamlit
+streamlit-extras
+unstructured #==0.11.6
+sentence-transformers
