@@ -254,7 +254,7 @@ def main():
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
-            error_message = "Sorry, please input your news URL and click the Process button before querying!"
+            error_message = "Sorry, please upload your document(s) and click the Process button before querying!"
 
             if prompt != None and prompt.isspace() == False:
                 if st.session_state.docs != None and st.session_state.is_processed != None and st.session_state.is_vector_embeddings == True:
