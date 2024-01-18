@@ -77,9 +77,9 @@ def get_conversation_chain(vector_embeddings):
          openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
          openai_api_version = "2023-05-15", 
          openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-         azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
+         azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
     #     temperature = 0.4
-    # )
+     )
     
     # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
     
