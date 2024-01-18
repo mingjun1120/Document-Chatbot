@@ -29,6 +29,7 @@ import os
 import pickle
 import random
 import time
+import re
 
 # ------------------------------------------------------ FUNCTIONS ------------------------------------------------------ #
 # Function to get the text chunks from the PDFs
@@ -72,26 +73,28 @@ def get_vectors_embedding(docs_text_chunks):
 def get_conversation_chain(vector_embeddings):
 
     # llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=api_key, temperature=0.5)
-    # llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
+    llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
+        openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+        openai_api_version = "2023-05-15", 
+        openai_api_type = st.secrets["OPENAI_API_TYPE"], 
+        azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
+        temperature = 0.4
+    )
+    # llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
+    #     # model_name = "gpt-3.5-turbo"
     #     openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
     #     openai_api_version = "2023-05-15", 
     #     openai_api_type = st.secrets["OPENAI_API_TYPE"], 
     #     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
+    #      temperature = 0.5
     # )
-    llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
-        # model_name = "gpt-3.5-turbo"
-        openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-        openai_api_version = "2023-05-15", 
-        openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-        azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
-    )
-    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+    # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
     
     conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
         llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
         retriever=vector_embeddings.as_retriever(),
         condense_question_prompt=condense_ques_prompt,
-        memory=memory,
+        # memory=memory,
         return_source_documents=True,
         chain_type="map_reduce",
         condense_question_llm=llm # Can use cheaper and faster model for the simpler task like condensing the current question and the chat history into a standalone question with GPT-3.5 if you are on budget. Otherwise, use the same model as the llm
@@ -121,6 +124,8 @@ def initialize_session_state():
         st.session_state.is_processed = None
     if "is_vector_embeddings" not in st.session_state:
         st.session_state.is_vector_embeddings = False
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
 
 def reset_session_state():
     # Use to clear the inputs in st.text_input for URL 1, URL 2, URL 3 when the user clicks the "Reset All" button
@@ -155,7 +160,7 @@ load_dotenv()
 # azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
 # azure_type = st.secrets["OPENAI_API_TYPE"]
 
-prompt_template = """Given the following conversation and a follow-up question from the user, rephrase the follow-up question to be a standalone question, in its original language. Subsequently, understand the context of the question and retrieve relevant information on the standalone question from the VectorStoreRetriever to generate an answer. If you can't find relevant information, explicitly state that no relevant references were found.
+prompt_template = """Given the following conversation and a follow-up question from the user, rephrase the follow-up question to be a standalone question, in its original language. Subsequently, understand the context of the question and retrieve relevant information on the standalone question from the VectorStoreRetriever to generate an answer. If you can't find relevant information to asnwer the question, explicitly state that no relevant references were found.
 
 Chat History:
 {chat_history}
@@ -168,7 +173,8 @@ page_icon = ":speech_balloon:"  # https://www.webfx.com/tools/emoji-cheat-sheet/
 st.set_page_config(page_title="PDF Chat App", page_icon=page_icon, layout="centered")
 
 # Page header
-st.header(body=f"Document :books: ChatBot {page_icon}")
+# st.header(body=f"Document :books: ChatBot {page_icon}")
+st.header(body=f"DocEYE :books: ChatBot {page_icon}")
 
 def main():
 
@@ -264,25 +270,36 @@ def main():
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
-            error_message = "Sorry, please upload your document(s) and click the Process button before querying!"
-
+            error_message = "Sorry, please upload your document(s) and click the **Process docs** button before querying!"
             if prompt != None and prompt.isspace() == False:
                 if st.session_state.docs != None and st.session_state.is_processed != None and st.session_state.is_vector_embeddings == True:
                     # result will be a dictionary of this format --> {"answer": "", "sources": ""}
-                    result = st.session_state.conversation_chain.invoke({"question": prompt})
-                    assistant_response = result.get("answer") + " **Source:** " + result["source_documents"][0].page_content
-
+                    result = st.session_state.conversation_chain.invoke({"question": prompt, "chat_history": st.session_state.chat_history})
+                    st.session_state.chat_history.append((prompt, result.get("answer")))
+                    assistant_response = result.get("answer")
+                    
+                    # Get the refeence source
+                    references = ["**Sources:**"]
+                    if result.get("source_documents") != []:
+                        for index, doc in enumerate(result.get("source_documents")):
+                            references.append(f"{index + 1}. " + doc.metadata.get('source').split('\\')[1] + " - Page " + str(doc.metadata.get('page')))
+                    
                     # Simulate stream of response with milliseconds delay
-                    for chunk in assistant_response.split():
-                        if chunk == "**Sources:**":
-                            full_response = full_response + '\n\n' + chunk + " "
+                    for index, chunk in enumerate(assistant_response.split() + references):
+                        
+                        if chunk == '**Sources:**':
+                            full_response += f'\n\n{chunk}\n'
+                        elif bool(re.match(r'^\d+\.', chunk)):
+                            full_response += f'{chunk}\n'
                         else:
                             full_response += chunk + " "
                         
                         time.sleep(0.05)
+                        
                         # Add a blinking cursor to simulate typing
                         message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
+                
                 else:
                     assistant_response = error_message
                     # Simulate stream of response with milliseconds delay
@@ -301,11 +318,15 @@ def main():
                 
                 if st.session_state.messages != [] and st.session_state.messages[-1]["content"] == error_message and prompt == None:
                     # Simulate stream of response with milliseconds delay
-                    for chunk in error_message.split():
-                        full_response += chunk + " "
+                    for index, chunk in enumerate(assistant_response.split()):
+                        full_response += chunk + " " 
                         time.sleep(0.05)
+                        
                         # Add a blinking cursor to simulate typing
-                        message_placeholder.markdown(full_response + "▌")
+                        if index == len(assistant_response.split()) - 1:
+                            message_placeholder.markdown(full_response)
+                        else:
+                            message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
 
             # Add assistant response to chat history
