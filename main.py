@@ -79,6 +79,8 @@ def get_conversation_chain(vector_embeddings):
          openai_api_type = st.secrets["OPENAI_API_TYPE"], 
          azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"])
     
+     # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+    
     conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
         llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
         retriever=vector_embeddings.as_retriever(),
@@ -89,6 +91,7 @@ def get_conversation_chain(vector_embeddings):
         condense_question_llm=llm # Can use cheaper and faster model for the simpler task like condensing the current question and the chat history into a standalone question with GPT-3.5 if you are on budget. Otherwise, use the same model as the llm
     )
     return conversation_chain
+
 
 # Function to save the uploaded file to the local temp_pdf_store folder
 def save_uploadedfile(uploadedfile):
