@@ -78,7 +78,7 @@ def get_conversation_chain(vector_embeddings):
          openai_api_version = "2023-05-15", 
          openai_api_type = st.secrets["OPENAI_API_TYPE"], 
          azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"])
-    #     temperature = 0.4
+ 
      
    # llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
    #     # model_name = "gpt-3.5-turbo"
@@ -89,7 +89,7 @@ def get_conversation_chain(vector_embeddings):
    #     temperature=0.5,
    #     top_p=0.5
    # )
-    # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+   # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
     
     conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
         llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
