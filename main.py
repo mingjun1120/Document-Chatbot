@@ -71,26 +71,25 @@ def get_vectors_embedding(docs_text_chunks):
     return vector_embeddings
 
 def get_conversation_chain(vector_embeddings):
+    # llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=api_key, temperature=0.5)
+    llm = AzureChatOpenAI(
+        deployment_name="my-dna-gpt35turbo",
+        openai_api_key=st.secrets["AZURE_OPENAI_API_KEY"],
+        openai_api_version="2023-05-15",
+        openai_api_type=st.secrets["OPENAI_API_TYPE"],
+        azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"]
+    )
 
-     #llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=api_key, temperature=0.5)
-     llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
-         openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-         openai_api_version = "2023-05-15", 
-         openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-         azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
-    #     temperature = 0.4
-     )
-    
     # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
-    
-    conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
-        llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
+
+    conversation_chain = ConversationalRetrievalChain.from_llm(
+        llm=llm,
         retriever=vector_embeddings.as_retriever(),
         condense_question_prompt=condense_ques_prompt,
         # memory=memory,
         return_source_documents=True,
         chain_type="map_reduce",
-        condense_question_llm=llm # Can use cheaper and faster model for the simpler task like condensing the current question and the chat history into a standalone question with GPT-3.5 if you are on budget. Otherwise, use the same model as the llm
+        condense_question_llm=llm
     )
     return conversation_chain
 
