@@ -86,11 +86,14 @@ def get_conversation_chain(vector_embeddings):
         azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
     )
     memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
-    # from_chain_type
-    conversation_chain = ConversationalRetrievalChain.from_llm(
+    
+    conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
         llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
         retriever=vector_embeddings.as_retriever(),
+        condense_question_prompt=condense_ques_prompt,
         memory=memory,
+        return_source_documents=True,
+        chain_type="map_reduce",
         condense_question_llm=llm # Can use cheaper and faster model for the simpler task like condensing the current question and the chat history into a standalone question with GPT-3.5 if you are on budget. Otherwise, use the same model as the llm
     )
     return conversation_chain
@@ -152,6 +155,13 @@ load_dotenv()
 # azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
 # azure_type = st.secrets["OPENAI_API_TYPE"]
 
+prompt_template = """Given the following conversation and a follow-up question from the user, rephrase the follow-up question to be a standalone question, in its original language. Subsequently, understand the context of the question and retrieve relevant information on the standalone question from the VectorStoreRetriever to generate an answer. If you can't find relevant information, explicitly state that no relevant references were found.
+
+Chat History:
+{chat_history}
+Follow-Up User Input: {question}
+Standalone Question:"""
+condense_ques_prompt = PromptTemplate.from_template(prompt_template)
 
 # Set the tab's title, icon and CSS style
 page_icon = ":speech_balloon:"  # https://www.webfx.com/tools/emoji-cheat-sheet/
@@ -260,11 +270,11 @@ def main():
                 if st.session_state.docs != None and st.session_state.is_processed != None and st.session_state.is_vector_embeddings == True:
                     # result will be a dictionary of this format --> {"answer": "", "sources": ""}
                     result = st.session_state.conversation_chain.invoke({"question": prompt})
-                    assistant_response = result.get("answer")
+                    assistant_response = result.get("answer") + " **Source:** " + result["source_documents"][0].page_content
 
                     # Simulate stream of response with milliseconds delay
                     for chunk in assistant_response.split():
-                        if chunk == "**Sources**:":
+                        if chunk == "**Sources:**":
                             full_response = full_response + '\n\n' + chunk + " "
                         else:
                             full_response += chunk + " "
