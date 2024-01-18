@@ -73,21 +73,22 @@ def get_vectors_embedding(docs_text_chunks):
 def get_conversation_chain(vector_embeddings):
 
     # llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=api_key, temperature=0.5)
-    llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
+    # llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
+    #     openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+    #     openai_api_version = "2023-05-15", 
+    #     openai_api_type = st.secrets["OPENAI_API_TYPE"], 
+    #     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
+    #     temperature = 0.4
+    # )
+    llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
+        # model_name = "gpt-3.5-turbo"
         openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
         openai_api_version = "2023-05-15", 
         openai_api_type = st.secrets["OPENAI_API_TYPE"], 
         azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
-        temperature = 0.4
+        temperature=0.5,
+        top_p=0.5
     )
-    # llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
-    #     # model_name = "gpt-3.5-turbo"
-    #     openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-    #     openai_api_version = "2023-05-15", 
-    #     openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-    #     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
-    #      temperature = 0.5
-    # )
     # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
     
     conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
