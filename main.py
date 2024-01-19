@@ -14,7 +14,11 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains.conversational_retrieval.prompts import (CONDENSE_QUESTION_PROMPT, QA_PROMPT)
 from langchain.chains import ConversationalRetrievalChain, RetrievalQAWithSourcesChain
-from langchain.prompts import PromptTemplate
+from langchain.prompts import (
+    PromptTemplate, ChatPromptTemplate, 
+    MessagesPlaceholder, SystemMessagePromptTemplate, 
+    HumanMessagePromptTemplate
+)
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import (SystemMessage, HumanMessage, AIMessage)
 
@@ -50,7 +54,7 @@ def get_document_text_chunks():
 
         # Get the text chunks of the PDF file, accumulate to the text_chunks list variable becaus load_and_split() returns a list of Document
         docs_text_chunks += loader.load_and_split(text_splitter=RecursiveCharacterTextSplitter(
-            chunk_size = 750,
+            chunk_size = 800,
             chunk_overlap = 80,
             length_function = len,
             separators= ["\n\n", "\n", ".", " "]
@@ -73,31 +77,29 @@ def get_vectors_embedding(docs_text_chunks):
 def get_conversation_chain(vector_embeddings):
 
     # llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=api_key, temperature=0.5)
-    # llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
-    #     openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-    #     openai_api_version = "2023-05-15", 
-    #     openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-    #     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
-    #     temperature = 0.4
-    # )
-    llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
-        # model_name = "gpt-3.5-turbo"
+    llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
         openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
         openai_api_version = "2023-05-15", 
         openai_api_type = st.secrets["OPENAI_API_TYPE"], 
         azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
-        temperature=0.5,
-        top_p=0.5
     )
+    # llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
+    #     # model_name = "gpt-3.5-turbo"
+    #     openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+    #     openai_api_version = "2023-05-15", 
+    #     openai_api_type = st.secrets["OPENAI_API_TYPE"], 
+    #     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
+    #     temperature=0.6,
+    #     top_p=0.6
+    # )
+    
     # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
     
     conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
         llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
         retriever=vector_embeddings.as_retriever(),
-        condense_question_prompt=condense_ques_prompt,
         # memory=memory,
         return_source_documents=True,
-        chain_type="map_reduce",
         condense_question_llm=llm # Can use cheaper and faster model for the simpler task like condensing the current question and the chat history into a standalone question with GPT-3.5 if you are on budget. Otherwise, use the same model as the llm
     )
     return conversation_chain
@@ -128,11 +130,7 @@ def initialize_session_state():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-def reset_session_state():
-    # Use to clear the inputs in st.text_input for URL 1, URL 2, URL 3 when the user clicks the "Reset All" button
-    # st.session_state.URL_4, st.session_state.URL_5, st.session_state.URL_6 = st.session_state.URL_1, st.session_state.URL_2, st.session_state.URL_3
-    # st.session_state.URL_1, st.session_state.URL_2, st.session_state.URL_3 = '', '', ''
-    
+def reset_session_state():    
     # Delete all the keys in session state
     for key in st.session_state.keys():
         del st.session_state[key]
@@ -155,19 +153,6 @@ def remove_files():
 
 # Load the environment variables
 load_dotenv()
-# api_key = os.getenv("GOOGLE_API_KEY")
-# google_key = st.secrets["GOOGLE_API_KEY"]
-# azure_key = st.secrets["AZURE_OPENAI_API_KEY"]
-# azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
-# azure_type = st.secrets["OPENAI_API_TYPE"]
-
-prompt_template = """Given the following conversation and a follow-up question from the user, rephrase the follow-up question to be a standalone question, in its original language. Subsequently, understand the context of the question and retrieve relevant information on the standalone question from the VectorStoreRetriever to generate an answer. If you can't find relevant information to asnwer the question, explicitly state that no relevant references were found.
-
-Chat History:
-{chat_history}
-Follow-Up User Input: {question}
-Standalone Question:"""
-condense_ques_prompt = PromptTemplate.from_template(prompt_template)
 
 # Set the tab's title, icon and CSS style
 page_icon = ":speech_balloon:"  # https://www.webfx.com/tools/emoji-cheat-sheet/
@@ -260,23 +245,23 @@ def main():
             st.markdown(message["content"])
     
     # Accept user input
-    if prompt := st.chat_input("Enter your query:"):
+    if question := st.chat_input("Enter your query:"):
         # Display user message in chat message container
         with st.chat_message("user"):
-            st.markdown(prompt)
+            st.markdown(question)
         # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "user", "content": question})
 
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
             error_message = "Sorry, please upload your document(s) and click the **Process docs** button before querying!"
-            if prompt != None and prompt.isspace() == False:
+            if question != None and question.isspace() == False:
                 if st.session_state.docs != None and st.session_state.is_processed != None and st.session_state.is_vector_embeddings == True:
                     # result will be a dictionary of this format --> {"answer": "", "sources": ""}
-                    result = st.session_state.conversation_chain.invoke({"question": prompt, "chat_history": st.session_state.chat_history})
-                    st.session_state.chat_history.append((prompt, result.get("answer")))
+                    result = st.session_state.conversation_chain.invoke({"question": question, "chat_history": st.session_state.chat_history})
+                    st.session_state.chat_history.append((question, result.get("answer")))
                     assistant_response = result.get("answer")
                     
                     # Get the refeence source
@@ -314,27 +299,23 @@ def main():
                 # # Add assistant response to chat history
                 # st.session_state.messages.append({"role": "assistant", "content": full_response})
             else:
-                if prompt.isspace():
-                    prompt = None
+                if question.isspace():
+                    question = None
                 
-                if st.session_state.messages != [] and st.session_state.messages[-1]["content"] == error_message and prompt == None:
+                if st.session_state.messages != [] and st.session_state.messages[-1]["content"] == error_message and question == None:
                     # Simulate stream of response with milliseconds delay
                     for index, chunk in enumerate(assistant_response.split()):
                         full_response += chunk + " " 
                         time.sleep(0.05)
-                        
                         # Add a blinking cursor to simulate typing
-                        if index == len(assistant_response.split()) - 1:
-                            message_placeholder.markdown(full_response)
-                        else:
-                            message_placeholder.markdown(full_response + "▌")
+                        message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
 
             # Add assistant response to chat history
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             
             # Clear the user input after the user hits enter
-            prompt = None
+            question = None
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
