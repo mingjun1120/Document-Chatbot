@@ -1,0 +1,7 @@
+1. https://stackoverflow.com/questions/76175046/how-to-add-prompt-to-langchain-conversationalretrievalchain-chat-over-docs-with
+2. https://github.com/langchain-ai/langchain/discussions/3115
+3. https://stackoverflow.com/questions/76093852/langchain-custom-prompts-input-parameters-not-clear
+4. https://python.langchain.com/docs/use_cases/summarization
+5. https://stackoverflow.com/questions/76175046/how-to-add-prompt-to-langchain-conversationalretrievalchain-chat-over-docs-with
+6. https://github.com/langchain-ai/langchain/issues/5462
+7. https://stackoverflow.com/questions/76396514/how-can-i-use-the-map-reduce-chain-instead-of-the-stuff-chain-in-my-conversati
