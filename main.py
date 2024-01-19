@@ -270,6 +270,9 @@ def main():
                         for index, doc in enumerate(result.get("source_documents")):
                             references.append(f"{index + 1}. " + os.path.split(doc.metadata.get('source'))[1] + " - Page " + str(doc.metadata.get('page')))
                     
+                    # Remove duplicate elements in the list
+                    references = list(set(references))
+                    
                     # Simulate stream of response with milliseconds delay
                     for index, chunk in enumerate(assistant_response.split() + references):
                         
