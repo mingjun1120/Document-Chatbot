@@ -265,20 +265,26 @@ def main():
                     assistant_response = result.get("answer")
                     
                     # Get the refeence source
-                    references = ["**Sources:**"]
+                    references = []
                     if result.get("source_documents") != []:
-                        for index, doc in enumerate(result.get("source_documents")):
-                            references.append(f"{index + 1}. " + os.path.split(doc.metadata.get('source'))[1] + " - Page " + str(doc.metadata.get('page')))
+                        for doc in result.get("source_documents"):
+                            references.append(os.path.split(doc.metadata.get('source'))[1] + " - Page " + str(doc.metadata.get('page')))
                     
                     # Remove duplicate elements in the list
                     references = list(set(references))
+                    
+                    # Addd number in front of every reference source
+                    for index, ref in enumerate(references):
+                        references[index] = f"{index + 1}. " + ref
+                    
+                    references = ["**Sources:**"] + references
                     
                     # Simulate stream of response with milliseconds delay
                     for index, chunk in enumerate(assistant_response.split() + references):
                         
                         if chunk == '**Sources:**':
                             full_response += f'\n\n{chunk}\n'
-                        elif bool(re.match(r'^\d+\.', chunk)):
+                        elif bool(re.match(r'^\d+\.\s', chunk)):
                             full_response += f'{chunk}\n'
                         else:
                             full_response += chunk + " "
