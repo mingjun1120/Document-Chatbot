@@ -30,6 +30,7 @@ import sys
 import os
 
 # Import other modules
+from config import Config
 import pickle
 import random
 import time
@@ -57,48 +58,52 @@ def get_document_text_chunks():
             chunk_size = 800,
             chunk_overlap = 80,
             length_function = len,
-            separators= ["\n\n", "\n", ".", " "]
+            separators= ["\n\n", "\n", " ", ""]
         ))
-
     return docs_text_chunks
 
-def get_vectors_embedding(docs_text_chunks): 
-    # embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", task_type="retrieval_query", google_api_key=st.secrets["GOOGLE_API_KEY"])
-    embeddings = AzureOpenAIEmbeddings(deployment = "text-embedding-ada-002", 
-        openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-        openai_api_version = "2023-05-15", 
-        openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-        azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
-    )
-    vector_embeddings = FAISS.from_documents(documents=docs_text_chunks, embedding=embeddings)
+# Function to get embeddings
+def get_vectors_embedding(docs_text_chunks):
+    if Config.LLMCONFIG.get('CHOSEN_LLM') == "Azure OpenAI":
+        embeddings = AzureOpenAIEmbeddings(
+            deployment = "text-embedding-ada-002", 
+            openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+            openai_api_version = "2023-05-15", 
+            openai_api_type = st.secrets["OPENAI_API_TYPE"], 
+            azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
+        )
+    elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Gemini":
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", task_type="retrieval_query", google_api_key=st.secrets["GOOGLE_API_KEY"])
+    else:
+        raise ValueError("Please configure the embedding model in the config.py file!")
 
+    vector_embeddings = FAISS.from_documents(documents=docs_text_chunks, embedding=embeddings)
     return vector_embeddings
 
+# Function to create the LLM chat agent
 def get_conversation_chain(vector_embeddings):
-
-    # llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=api_key, temperature=0.5)
-    llm = AzureChatOpenAI(deployment_name = "my-dna-gpt35turbo", 
-        openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-        openai_api_version = "2023-05-15", 
-        openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-        azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
-    )
-    # llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", 
-    #     # model_name = "gpt-3.5-turbo"
-    #     openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-    #     openai_api_version = "2023-05-15", 
-    #     openai_api_type = st.secrets["OPENAI_API_TYPE"], 
-    #     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
-    #     temperature=0.6,
-    #     top_p=0.6
-    # )
-    
-    # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+    if Config.LLMCONFIG.get('CHOSEN_LLM') == "Azure OpenAI":
+        llm = AzureChatOpenAI(
+            deployment_name = "my-dna-gpt35turbo", 
+            openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+            openai_api_version = "2023-05-15", 
+            openai_api_type = st.secrets["OPENAI_API_TYPE"], 
+            azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
+            max_tokens = 550,
+            model_kwargs={"top_p": 0.9}
+        )
+        # llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], openai_api_version = "2023-05-15", openai_api_type = st.secrets["OPENAI_API_TYPE"], azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"], max_tokens=550, top_p = 0.9)
+    elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Gemini":
+        llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=st.secrets["GOOGLE_API_KEY"])    
+    else:
+        raise ValueError("Please configure the embedding model in the config.py file!")
     
     conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
         llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
-        retriever=vector_embeddings.as_retriever(),
-        # memory=memory,
+        retriever=vector_embeddings.as_retriever(
+            search_type = Config.VECTORSTORECONFIG.get("SEARCH_TYPE"),
+            search_kwargs = Config.VECTORSTORECONFIG.get("SEARCH_KWARGS"),
+        ),
         return_source_documents=True,
         condense_question_llm=llm # Can use cheaper and faster model for the simpler task like condensing the current question and the chat history into a standalone question with GPT-3.5 if you are on budget. Otherwise, use the same model as the llm
     )
@@ -150,9 +155,6 @@ def remove_files():
             os.remove(file)
 
 # ------------------------------------------------------ GLOBAL VARIABLES ------------------------------------------------------ #
-
-# Load the environment variables
-load_dotenv()
 
 # Set the tab's title, icon and CSS style
 page_icon = ":speech_balloon:"  # https://www.webfx.com/tools/emoji-cheat-sheet/
@@ -228,14 +230,10 @@ def main():
         - [LangChain](https://python.langchain.com/)
         - [Gemini Pro](https://ai.google.dev/)
         ''')
-        st.write("Made ❤️ by Lim Ming Jun")
 
         # Reset button part
         reset = st.button('Reset All', on_click=reset_session_state)
         if reset:
-            # for key in st.session_state.keys():
-            #     del st.session_state[key]
-            # initialize_session_state()
             st.rerun()
     
     # ------------------------------------------------------ MAIN LAYOUT------------------------------------------------------ #
@@ -273,51 +271,30 @@ def main():
                     # Remove duplicate elements in the list
                     references = list(set(references))
                     
-                    # Addd number in front of every reference source
+                    # Add number in front of every reference source
                     for index, ref in enumerate(references):
                         references[index] = f"{index + 1}. " + ref
                     
                     references = ["**Sources:**"] + references
                     
-                    # Simulate stream of response with milliseconds delay
-                    for index, chunk in enumerate(assistant_response.split() + references):
-                        
-                        if chunk == '**Sources:**':
-                            full_response += f'\n\n{chunk}\n'
-                        elif bool(re.match(r'^\d+\.\s', chunk)):
-                            full_response += f'{chunk}\n'
-                        else:
-                            full_response += chunk + " "
-                        
-                        time.sleep(0.05)
-                        
-                        # Add a blinking cursor to simulate typing
-                        message_placeholder.markdown(full_response + "▌")
+                    references_joined = "\n".join(references)
+                    full_response = f"{assistant_response}\n\n{references_joined}"
+
                     message_placeholder.markdown(full_response)
                 
                 else:
                     assistant_response = error_message
-                    # Simulate stream of response with milliseconds delay
-                    for chunk in assistant_response.split():
-                        full_response += chunk + " "
-                        time.sleep(0.05)
-                        # Add a blinking cursor to simulate typing
-                        message_placeholder.markdown(full_response + "▌")
+                    full_response = assistant_response
                     message_placeholder.markdown(full_response)
             
-                # # Add assistant response to chat history
-                # st.session_state.messages.append({"role": "assistant", "content": full_response})
+                # Add assistant response to chat history
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
             else:
                 if question.isspace():
                     question = None
                 
                 if st.session_state.messages != [] and st.session_state.messages[-1]["content"] == error_message and question == None:
-                    # Simulate stream of response with milliseconds delay
-                    for index, chunk in enumerate(assistant_response.split()):
-                        full_response += chunk + " " 
-                        time.sleep(0.05)
-                        # Add a blinking cursor to simulate typing
-                        message_placeholder.markdown(full_response + "▌")
+                    full_response = assistant_response
                     message_placeholder.markdown(full_response)
 
             # Add assistant response to chat history
