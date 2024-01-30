@@ -1,3 +1,4 @@
 /.streamlit
 /pdfenv
+/__pycache__
 backup.py
