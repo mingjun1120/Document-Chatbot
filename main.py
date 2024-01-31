@@ -143,7 +143,7 @@ def main():
                     st.session_state.chat_history.append((question, result.get("answer")))
                     assistant_response = result.get("answer")
                     
-                    # Get the refeence source
+                    # Get the reference sources
                     references = []
                     if result.get("source_documents") != []:
                         for doc in result.get("source_documents"):
@@ -152,37 +152,48 @@ def main():
                     # Remove duplicate elements in the list
                     references = list(set(references))
                     
-                    # Add number in front of every reference source
+                    # Add number in front of every reference source. Exp: "visa.pdf - Page 2" => "1. visa.pdf - Page 2"
                     for index, ref in enumerate(references):
                         references[index] = f"{index + 1}. " + ref
                     
                     references = ["**Sources:**"] + references
                     
                     references_joined = "\n".join(references)
-                    full_response = f"{assistant_response}\n\n{references_joined}"
-
+                    combined_str = f"{assistant_response}\n\n{references_joined}"
+                    
+                    # Simulate stream of response with milliseconds delay
+                    for char in combined_str:
+                        full_response += char
+                        time.sleep(0.01)
+                        message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
-                
+                    
                 else:
-                    assistant_response = error_message
-                    full_response = assistant_response
+                    # Simulate stream of response with milliseconds delay
+                    for chunk in error_message.split():
+                        full_response += chunk + " " 
+                        time.sleep(0.02)
+                        # Add a blinking cursor to simulate typing
+                        message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
-            
-                # Add assistant response to chat history
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
             else:
                 if question.isspace():
                     question = None
                 
                 if st.session_state.messages != [] and st.session_state.messages[-1]["content"] == error_message and question == None:
-                    full_response = assistant_response
+                    # Simulate stream of response with milliseconds delay
+                    for chunk in error_message.split():
+                        full_response += chunk + " " 
+                        time.sleep(0.02)
+                        # Add a blinking cursor to simulate typing
+                        message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
 
-            # Add assistant response to chat history
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            
-            # Clear the user input after the user hits enter
-            question = None
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        
+        # Clear the user input after the user hits enter
+        question = None
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
