@@ -164,7 +164,7 @@ def main():
                     # Simulate stream of response with milliseconds delay
                     for char in combined_str:
                         full_response += char
-                        time.sleep(0.01)
+                        time.sleep(0.006)
                         message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
                     
@@ -172,7 +172,7 @@ def main():
                     # Simulate stream of response with milliseconds delay
                     for chunk in error_message.split():
                         full_response += chunk + " " 
-                        time.sleep(0.02)
+                        time.sleep(0.006)
                         # Add a blinking cursor to simulate typing
                         message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
@@ -184,7 +184,7 @@ def main():
                     # Simulate stream of response with milliseconds delay
                     for chunk in error_message.split():
                         full_response += chunk + " " 
-                        time.sleep(0.02)
+                        time.sleep(0.006)
                         # Add a blinking cursor to simulate typing
                         message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
