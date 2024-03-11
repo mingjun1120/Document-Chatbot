@@ -6,12 +6,12 @@ from langchain_community.document_loaders import UnstructuredURLLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAI, GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_openai import AzureChatOpenAI, AzureOpenAI, AzureOpenAIEmbeddings
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import AzureChatOpenAI, AzureOpenAI, AzureOpenAIEmbeddings, OpenAIEmbeddings
+from langchain_groq import ChatGroq
 from langchain_community.vectorstores import FAISS
 from langchain.chains.conversational_retrieval.prompts import (CONDENSE_QUESTION_PROMPT, QA_PROMPT)
 from langchain.chains import ConversationalRetrievalChain, RetrievalQAWithSourcesChain
-from langchain.prompts import (
+from langchain.prompts import(
     PromptTemplate, ChatPromptTemplate, 
     MessagesPlaceholder, SystemMessagePromptTemplate, 
     HumanMessagePromptTemplate
@@ -60,14 +60,22 @@ def get_document_text_chunks():
 def get_vectors_embedding(docs_text_chunks):
     if Config.LLMCONFIG.get('CHOSEN_LLM') == "Azure OpenAI":
         embeddings = AzureOpenAIEmbeddings(
-            deployment = "text-embedding-ada-002", 
+            deployment = Config.LLMCONFIG.get('EMBEDDMODEL'),
             openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
             openai_api_version = "2023-05-15", 
             openai_api_type = st.secrets["OPENAI_API_TYPE"], 
             azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
         )
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Gemini":
-        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", task_type="retrieval_query", google_api_key=st.secrets["GOOGLE_API_KEY"])
+        embeddings = GoogleGenerativeAIEmbeddings(model=Config.LLMCONFIG.get('EMBEDDMODEL'), task_type="retrieval_query", google_api_key=st.secrets["GOOGLE_API_KEY"])
+    elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Mistral":
+        embeddings = AzureOpenAIEmbeddings(
+            deployment = Config.LLMCONFIG.get('EMBEDDMODEL'),
+            openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+            openai_api_version = "2023-05-15", 
+            openai_api_type = st.secrets["OPENAI_API_TYPE"], 
+            azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
+        )
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
 
@@ -86,11 +94,24 @@ def get_conversation_chain(vector_embeddings):
             max_tokens = 550,
             model_kwargs={"top_p": 0.9}
         )
-        # llm = AzureOpenAI(deployment_name = "my-dna-gpt35turbo", openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], openai_api_version = "2023-05-15", openai_api_type = st.secrets["OPENAI_API_TYPE"], azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"], max_tokens=550, top_p = 0.9)
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Gemini":
         llm = GoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=st.secrets["GOOGLE_API_KEY"])    
+    elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Mistral":
+        llm = ChatGroq(temperature=0, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="mixtral-8x7b-32768")
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
+    
+    custom_template = """You are a powerful AI Assistant. Given the following conversation and a 
+    follow up question, rephrase the follow up question to be a standalone question. 
+    At the end of standalone question add this 'Answer the question in English language.' 
+    If you do not know the answer reply with 'I am sorry, I dont have enough information'.
+    Chat History:
+    {chat_history}
+    Follow Up Input: {question}
+    Standalone question:
+    """
+
+    CUSTOM_QUESTION_PROMPT = PromptTemplate.from_template(custom_template)
     
     conversation_chain = ConversationalRetrievalChain.from_llm( # from_chain_type
         llm=llm, # Use the llm to generate the response, we can use better llm such as GPT-4 model from OpenAI to guarantee the quality of the response. For exp, the resopnse is more human-like
@@ -99,6 +120,7 @@ def get_conversation_chain(vector_embeddings):
             search_kwargs = Config.VECTORSTORECONFIG.get("SEARCH_KWARGS"),
         ),
         return_source_documents=True,
+        condense_question_prompt=CUSTOM_QUESTION_PROMPT,
         condense_question_llm=llm # Can use cheaper and faster model for the simpler task like condensing the current question and the chat history into a standalone question with GPT-3.5 if you are on budget. Otherwise, use the same model as the llm
     )
     return conversation_chain
