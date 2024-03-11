@@ -1,11 +1,13 @@
 faiss-cpu
 pypdf
-rapidocr-onnxruntime
 ipykernel
+langchain
 langchain-openai
 langchain-google-genai
 langchain-community
-langchain
+langchain-groq
+langchain-mistralai
+groq
 openai
 tiktoken
 python-dotenv
