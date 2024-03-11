@@ -101,10 +101,10 @@ def get_conversation_chain(vector_embeddings):
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
     
-    custom_template = """You are a powerful AI Assistant. Given the following conversation and a 
-    follow up question, rephrase the follow up question to be a standalone question. 
-    At the end of standalone question add this 'Answer the question in English language.' 
-    If you do not know the answer reply with 'I am sorry, I dont have enough information'.
+    custom_template = """
+    You are a powerful AI Assistant. Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question. 
+    At the end of standalone question add this 'Answer the question in English language.' If you do not know the answer reply with 'I am sorry, I dont have enough information'.
+    
     Chat History:
     {chat_history}
     Follow Up Input: {question}
