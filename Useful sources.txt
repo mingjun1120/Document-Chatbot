@@ -9,3 +9,4 @@
 9. https://python.langchain.com/docs/integrations/providers/vectara/vectara_chat#pass-in-chat-history
 10. https://python.langchain.com/docs/integrations/vectorstores/faiss
 11. https://medium.com/@zekaouinoureddine/ask-your-web-pages-using-mistral-7b-langchain-f976e1e151ca
+12. https://python.langchain.com/docs/expression_language/cookbook/retrieval#with-memory-and-returning-source-documents
