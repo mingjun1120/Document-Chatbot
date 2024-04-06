@@ -1,38 +1,4 @@
-# Streamlit Imports
-import streamlit as st
-
-# Langchain Imports
-from langchain_community.document_loaders import UnstructuredURLLoader
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAI, GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_openai import AzureChatOpenAI, AzureOpenAI, AzureOpenAIEmbeddings, OpenAIEmbeddings
-from langchain_groq import ChatGroq
-from langchain_community.vectorstores import FAISS
-from langchain.chains.conversational_retrieval.prompts import (CONDENSE_QUESTION_PROMPT, QA_PROMPT)
-from langchain.chains import ConversationalRetrievalChain, RetrievalQAWithSourcesChain
-from langchain.prompts import(
-    PromptTemplate, ChatPromptTemplate, 
-    MessagesPlaceholder, SystemMessagePromptTemplate, 
-    HumanMessagePromptTemplate
-)
-from langchain.memory import ConversationBufferMemory
-from langchain_core.messages import AIMessage, HumanMessage, get_buffer_string
-from langchain.schema import StrOutputParser
-from langchain_core.prompts import format_document
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough, RunnableLambda
-from operator import itemgetter
-
-# Import system
-import sys
-import os
-
-# Import other modules
-from config import Config
-import pickle
-import random
-import time
-import re
+from imports import *
 
 # ------------------------------------------------------ FUNCTIONS ------------------------------------------------------ #
 # Function to get the text chunks from the PDFs
