@@ -23,7 +23,7 @@ def main():
         # Upload PDF Files
         st.subheader("Your documents")
         docs = st.file_uploader(label="Upload your PDFs here and click on 'Process'", 
-            accept_multiple_files=True, type=["pdf"], 
+            accept_multiple_files=True, type=["pdf", "docx", "doc"], 
             key=st.session_state["file_uploader_key"]
         )
         
@@ -45,18 +45,15 @@ def main():
 
                 with st.spinner(text="Building Embedding Vector..."):
                     # Create Vector Store
-                    vector_embeddings = get_vectors_embedding(docs_text_chunks)
-                    st.session_state.is_vector_embeddings = True
+                    st.session_state.is_vector_embeddings = get_vectors_embedding(docs_text_chunks)
+                    # st.session_state.is_vector_embeddings = True
                     
                     # Remove the PDFs from the Upload folder
                     remove_files()
 
                 with st.spinner(text="Building Conversation Chain..."):
-                    # Create Memory
-                    memory = ConversationBufferMemory(return_messages=True, output_key="answer", input_key="question")
-
                     # Create conversation chain
-                    st.session_state.conversation_chain = get_conversation_chain(vector_embeddings, memory)
+                    st.session_state.conversation_chain = get_conversation_chain(st.session_state.is_vector_embeddings)
                 
                 # Print System Message at the end
                 st.success(body=f"Done processing!", icon="✅")
@@ -68,7 +65,7 @@ def main():
             st.session_state.docs = docs
         else:
             st.session_state.docs = None
-            st.session_state.is_vector_embeddings = False
+            st.session_state.is_vector_embeddings = None
 
         add_vertical_space(num_lines=1)
 
@@ -97,6 +94,7 @@ def main():
         # Display user message in chat message container
         with st.chat_message("user"):
             st.markdown(question)
+        
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": question})
 
@@ -106,17 +104,17 @@ def main():
             full_response = ""
             error_message = "Sorry, please upload your document(s) and click the **Process docs** button before querying!"
 
-            with st.spinner(text="Generating..."):
-                if question != None and question.isspace() == False:
-                    if st.session_state.docs != None and st.session_state.is_processed != None and st.session_state.is_vector_embeddings == True:
+            if question != None and question.isspace() == False:
+                if st.session_state.docs != None and st.session_state.is_processed != None and st.session_state.is_vector_embeddings != None:
+                    with st.spinner(text="Generating..."):
                         # result will be a dictionary of this format --> {"answer": AIMessage(content='The creators'), "docs": [Document(page_content='Attention', metadata={'page': 1}), ]}
-                        result = st.session_state.conversation_chain.invoke({"question": question})
-                        assistant_response = result.get("answer").content
+                        result = st.session_state.conversation_chain.invoke(input={"input": question}, config={"configurable": {"session_id": "abc123"}}) # st.session_state.file_uploader_key
+                        assistant_response = result.get("answer")
                         
                         # Get the reference sources
                         references = []
-                        if result.get("docs") != []:
-                            for doc in result.get("docs"):
+                        if result.get("context") != []:
+                            for doc in result.get("context"):
                                 references.append(os.path.split(doc.metadata.get('source'))[1] + " - Page " + str(doc.metadata.get('page')+1))
                         
                         # Remove duplicate elements in the list
@@ -129,16 +127,17 @@ def main():
                         references = ["**Sources:**"] + references
                         
                         references_joined = "\n".join(references)
-                        combined_str = f"{assistant_response}\n\n{references_joined}"
-                        
+                        combined_str = f"{assistant_response}\n\n{references_joined}" # \n\nkey: {st.session_state.file_uploader_key}\n\nstore id: {st.session_state.store_session_id}
+                    
+                    with st.spinner(text="Displaying..."):
                         # Simulate stream of response with milliseconds delay
                         for char in combined_str:
                             full_response += char
                             time.sleep(0.002)
                             message_placeholder.markdown(full_response + "▌")
                         message_placeholder.markdown(full_response)
-                        
-                    else:
+                else:
+                    with st.spinner(text="Displaying..."):
                         # Simulate stream of response with milliseconds delay
                         for chunk in error_message.split():
                             full_response += chunk + " " 
@@ -146,14 +145,12 @@ def main():
                             # Add a blinking cursor to simulate typing
                             message_placeholder.markdown(full_response + "▌")
                         message_placeholder.markdown(full_response)
-                else:
-                    if question.isspace():
-                        question = None
-                    
-                    if st.session_state.messages != [] and st.session_state.messages[-1]["content"] == error_message and question == None:
+            else:
+                if (st.session_state.messages != [] and st.session_state.messages[-1]["content"] == error_message and question == None) or question.isspace():
+                    with st.spinner(text="Displaying..."):
                         # Simulate stream of response with milliseconds delay
                         for chunk in error_message.split():
-                            full_response += chunk + " " 
+                            full_response += chunk + " "
                             time.sleep(0.002)
                             # Add a blinking cursor to simulate typing
                             message_placeholder.markdown(full_response + "▌")
