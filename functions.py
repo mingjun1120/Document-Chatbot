@@ -18,8 +18,13 @@ def get_document_text_chunks():
         loader = PyPDFLoader(os.path.join('temp_pdf_store', file)) # f"{os.getcwd()}\\temp_pdf_store\\{file}"
 
         # Get the text chunks of the PDF file, accumulate to the text_chunks list variable becaus load_and_split() returns a list of Document
-        docs_text_chunks += loader.load_and_split(text_splitter=RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=7500, chunk_overlap=100))
-        docs_text_chunks[0].page_content = docs_text_chunks[0].page_content.replace("Evaluation Warning: The document was created with Spire.Doc for Python.", "")
+        pages = loader.load()
+        for page in pages:
+            page.page_content = page.page_content.replace("Evaluation Warning: The document was created with Spire.Doc for Python.", "")
+        
+        text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=7500, chunk_overlap=100) 
+        docs_text_chunks = text_splitter.split_documents(pages)
+    
     return docs_text_chunks
 
 # Function to get embeddings
