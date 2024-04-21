@@ -33,7 +33,7 @@ from langchain_core.prompts import format_document
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough, RunnableLambda
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from operator import itemgetter
-from chromadb.errors import InvalidDimensionException
+# from chromadb.errors import InvalidDimensionException
 
 # Import env variables
 from dotenv import load_dotenv
