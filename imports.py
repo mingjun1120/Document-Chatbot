@@ -14,6 +14,7 @@ from langchain_groq import ChatGroq
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.chroma import Chroma
+from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_nomic.embeddings import NomicEmbeddings
 from langchain.chains.conversational_retrieval.prompts import (CONDENSE_QUESTION_PROMPT, QA_PROMPT)
 from langchain.chains import ConversationalRetrievalChain, RetrievalQAWithSourcesChain, create_history_aware_retriever, create_retrieval_chain
