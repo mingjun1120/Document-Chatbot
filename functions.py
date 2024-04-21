@@ -43,11 +43,20 @@ def get_vectors_embedding(docs_text_chunks):
             model=Config.EMBEDDINGCONFIG.get('EMBEDDMODEL'), 
             nomic_api_key=st.secrets["NOMIC_API_KEY"]
         )
+    elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Llama":
+        embeddings = NomicEmbeddings(
+            model=Config.EMBEDDINGCONFIG.get('EMBEDDMODEL'), 
+            nomic_api_key=st.secrets["NOMIC_API_KEY"]
+        )
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
 
-    Chroma().delete_collection()
-    vector_embeddings = Chroma.from_documents(documents=docs_text_chunks, embedding=embeddings)
+    # # Use Chroma
+    # Chroma().delete_collection()
+    # vector_embeddings = Chroma.from_documents(documents=docs_text_chunks, embedding=embeddings)
+
+    # Use FAISS
+    vector_embeddings = FAISS.from_documents(documents=docs_text_chunks, embedding=embeddings, distance_strategy=DistanceStrategy.COSINE)
     
     return vector_embeddings
 
@@ -55,7 +64,7 @@ def get_vectors_embedding(docs_text_chunks):
 def get_conversation_chain(vector_embeddings):
 
     ############################################### CREATE LLM ###############################################
-    llm_model = create_llm()
+    llm_model = create_llm(temperature=0.5, top_p=0.9)
     
     ## Contextualize question 
     contextualize_q_system_prompt = """Given a chat history and the latest user question \
@@ -123,7 +132,7 @@ def get_conversation_chain(vector_embeddings):
     # )
     return conversational_rag_chain
 
-def create_llm():
+def create_llm(temperature=0.7, top_p=0.9):
     if Config.LLMCONFIG.get('CHOSEN_LLM') == "Azure OpenAI":
         llm = AzureChatOpenAI(
             deployment_name = "gpt-35-turbo-16k", 
@@ -131,12 +140,20 @@ def create_llm():
             openai_api_version = "2024-02-01", 
             azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
             max_tokens = None,
-            model_kwargs={"top_p": 0.9}
+            temperature=temperature,
+            model_kwargs={"top_p": top_p}
         )
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Gemini":
-        llm = ChatGoogleGenerativeAI(model=st.session_state.gemini_pro_model, google_api_key=st.secrets["GOOGLE_API_KEY"])    
+        llm = ChatGoogleGenerativeAI(
+            model=st.session_state.gemini_pro_model, 
+            google_api_key=st.secrets["GOOGLE_API_KEY"],
+            temperature=temperature,
+            top_p=top_p
+        )    
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Mistral":
-        llm = ChatGroq(temperature=0.7, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="mixtral-8x7b-32768", model_kwargs={"top_p": 0.9})
+        llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="mixtral-8x7b-32768", model_kwargs={"top_p": top_p})
+    elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Llama":
+        llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="llama3-70b-8192", model_kwargs={"top_p": top_p})
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
     return llm
