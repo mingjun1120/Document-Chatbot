@@ -147,7 +147,7 @@ def create_llm(temperature=0.7, top_p=0.9):
     if Config.LLMCONFIG.get('CHOSEN_LLM') == "Azure OpenAI":
         llm = AzureChatOpenAI(
             deployment_name = "gpt-4o", 
-            openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+            api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
             openai_api_version = "2024-06-01", 
             azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
             max_tokens = None,
@@ -164,7 +164,7 @@ def create_llm(temperature=0.7, top_p=0.9):
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Mistral":
         llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="mixtral-8x7b-32768", model_kwargs={"top_p": top_p})
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Llama":
-        llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="llama-3.1-70b-versatile", model_kwargs={"top_p": top_p})
+        llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="llama-3.1-70b-versatile", model_kwargs={"top_p": top_p}) # llama-3.2-90b-vision-preview
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
     return llm
