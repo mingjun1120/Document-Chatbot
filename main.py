@@ -23,7 +23,7 @@ def main():
         # Upload PDF Files
         st.subheader("Your documents")
         docs = st.file_uploader(label="Upload your PDFs here and click on 'Process'", 
-            accept_multiple_files=True, type=["pdf", "docx", "doc"], 
+            accept_multiple_files=True, type=[".pdf", ".docx", ".md", ".pptx", "txt"], 
             key=st.session_state["file_uploader_key"]
         )
         
@@ -79,7 +79,7 @@ def main():
         ''')
 
         # Reset button part
-        reset = st.button('Reset All', on_click=reset_session_state)
+        reset = st.button('Clear All', on_click=reset_session_state)
         if reset:
             st.rerun()
     

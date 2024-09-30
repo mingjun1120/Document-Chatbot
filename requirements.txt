@@ -15,7 +15,9 @@ python-dotenv
 streamlit
 streamlit-extras
 unstructured #==0.11.6
-chromadb
-sentence-transformers
-Spire.Doc
-plum-dispatch==1.7.4
+# chromadb
+docx2txt
+python-pptx
+# sentence-transformers
+# Spire.Doc
+# plum-dispatch==1.7.4

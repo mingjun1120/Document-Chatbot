@@ -8,22 +8,31 @@ def get_document_text_chunks():
     docs_text_chunks = []
 
     # Retrive all the PDF files from the temp_pdf_store folder. Output of file_list = ['file1.pdf', 'file2.pdf']
-    files = filter(lambda f: f.lower().endswith(".pdf"), os.listdir("temp_pdf_store"))
+    files = filter(lambda f: f.lower().endswith((".pdf", ".docx", ".md", ".pptx", "txt")), os.listdir("temp_pdf_store"))
     file_list = list(files)
 
     # Loop through the PDF files and extract the text chunks
     for file in file_list:
         
-        # Retrieve the PDF file
-        loader = PyPDFLoader(os.path.join('temp_pdf_store', file)) # f"{os.getcwd()}\\temp_pdf_store\\{file}"
+        if file.endswith(".pdf"):
+            # Retrieve the PDF file
+            loader = PyPDFLoader(os.path.join('temp_pdf_store', file)) # f"{os.getcwd()}\\temp_pdf_store\\{file}"
+        elif file.endswith(".docx"):
+            loader = Docx2txtLoader(os.path.join('temp_pdf_store', file))
+        elif file.endswith(".md"):
+            loader = UnstructuredMarkdownLoader(os.path.join('temp_pdf_store', file))
+        elif file.endswith(".pptx"):
+            loader = UnstructuredPowerPointLoader(os.path.join('temp_pdf_store', file))
+        else:
+            loader = TextLoader(os.path.join('temp_pdf_store', file))
 
         # Get the text chunks of the PDF file, accumulate to the text_chunks list variable becaus load_and_split() returns a list of Document
         pages = loader.load()
-        for page in pages:
-            page.page_content = page.page_content.replace("Evaluation Warning: The document was created with Spire.Doc for Python.", "")
-        
+        if file.endswith(".pdf") == False:
+            for idx, page in enumerate(pages):
+                page.metadata['page'] = idx
         text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=7500, chunk_overlap=100) 
-        docs_text_chunks = text_splitter.split_documents(pages)
+        docs_text_chunks += text_splitter.split_documents(pages)
     
     return docs_text_chunks
 
@@ -33,7 +42,7 @@ def get_vectors_embedding(docs_text_chunks):
         embeddings = AzureOpenAIEmbeddings(
             deployment = Config.EMBEDDINGCONFIG.get('EMBEDDMODEL'),
             openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-            openai_api_version = "2024-02-01", 
+            openai_api_version = "2024-06-01", 
             azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
         )
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Gemini":
@@ -44,9 +53,11 @@ def get_vectors_embedding(docs_text_chunks):
             nomic_api_key=st.secrets["NOMIC_API_KEY"]
         )
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Llama":
-        embeddings = NomicEmbeddings(
-            model=Config.EMBEDDINGCONFIG.get('EMBEDDMODEL'), 
-            nomic_api_key=st.secrets["NOMIC_API_KEY"]
+        embeddings = AzureOpenAIEmbeddings(
+            deployment = Config.EMBEDDINGCONFIG.get('EMBEDDMODEL'),
+            openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
+            openai_api_version = "2024-06-01", 
+            azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
         )
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
@@ -64,7 +75,7 @@ def get_vectors_embedding(docs_text_chunks):
 def get_conversation_chain(vector_embeddings):
 
     ############################################### CREATE LLM ###############################################
-    llm_model = create_llm(temperature=0.5, top_p=0.9)
+    llm_model = create_llm(temperature=0.6, top_p=0.9)
     
     ## Contextualize question 
     contextualize_q_system_prompt = """Given a chat history and the latest user question \
@@ -135,9 +146,9 @@ def get_conversation_chain(vector_embeddings):
 def create_llm(temperature=0.7, top_p=0.9):
     if Config.LLMCONFIG.get('CHOSEN_LLM') == "Azure OpenAI":
         llm = AzureChatOpenAI(
-            deployment_name = "gpt-35-turbo-16k", 
+            deployment_name = "gpt-4o", 
             openai_api_key = st.secrets["AZURE_OPENAI_API_KEY"], 
-            openai_api_version = "2024-02-01", 
+            openai_api_version = "2024-06-01", 
             azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"],
             max_tokens = None,
             temperature=temperature,
@@ -153,7 +164,7 @@ def create_llm(temperature=0.7, top_p=0.9):
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Mistral":
         llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="mixtral-8x7b-32768", model_kwargs={"top_p": top_p})
     elif Config.LLMCONFIG.get('CHOSEN_LLM') == "Llama":
-        llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="llama3-70b-8192", model_kwargs={"top_p": top_p})
+        llm = ChatGroq(temperature=temperature, groq_api_key=st.secrets['GROQ_API_KEY'], model_name="llama-3.1-70b-versatile", model_kwargs={"top_p": top_p})
     else:
         raise ValueError("Please configure the embedding model in the config.py file!")
     return llm
@@ -164,22 +175,22 @@ def save_uploadedfile(uploadedfile):
     with open(os.path.join("temp_pdf_store", uploadedfile.name), "wb") as f:
         f.write(uploadedfile.getbuffer())
 
-    if uploadedfile.name.endswith(".pdf") == False:
+    # if uploadedfile.name.endswith(".pdf") == False:
         
-        # Get the file name without the extension
-        file_name = os.path.splitext(uploadedfile.name)[0] # Use -1 to get the file extension. E.g., '.docx'
+    #     # Get the file name without the extension
+    #     file_name = os.path.splitext(uploadedfile.name)[0] # Use -1 to get the file extension. E.g., '.docx'
         
-        from spire.doc import Document, FileFormat
+    #     from spire.doc import Document, FileFormat
 
-        # Create a Document object
-        document = Document()
+    #     # Create a Document object
+    #     document = Document()
 
-        # Load a Word DOCX file
-        document.LoadFromFile(os.path.join("temp_pdf_store", uploadedfile.name))
+    #     # Load a Word DOCX file
+    #     document.LoadFromFile(os.path.join("temp_pdf_store", uploadedfile.name))
 
-        # Save the file to a PDF file
-        document.SaveToFile(os.path.join("temp_pdf_store", f"{file_name}.pdf"), FileFormat.PDF)
-        document.Close()
+    #     # Save the file to a PDF file
+    #     document.SaveToFile(os.path.join("temp_pdf_store", f"{file_name}.pdf"), FileFormat.PDF)
+    #     document.Close()
 
 def initialize_session_state():
     # Set a default model

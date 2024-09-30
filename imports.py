@@ -5,9 +5,14 @@ from streamlit_extras.colored_header import colored_header
 from streamlit_extras.add_vertical_space import add_vertical_space
 
 # Langchain Imports
-from langchain_community.document_loaders import UnstructuredURLLoader
+from langchain_community.document_loaders.url import UnstructuredURLLoader
 from langchain_community.document_loaders.pdf import PyPDFLoader
+from langchain_community.document_loaders.word_document import Docx2txtLoader, UnstructuredWordDocumentLoader
+from langchain_community.document_loaders.markdown import UnstructuredMarkdownLoader
+from langchain_community.document_loaders.powerpoint import UnstructuredPowerPointLoader
+from langchain_community.document_loaders.text import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 from langchain_google_genai import GoogleGenerativeAI, GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI, AzureOpenAI, AzureOpenAIEmbeddings, OpenAIEmbeddings
 from langchain_groq import ChatGroq
@@ -49,5 +54,5 @@ import time
 import re
 
 # Import Spire modules
-from spire.doc import Document, FileFormat
-from spire.doc.common import *
+# from spire.doc import Document, FileFormat
+# from spire.doc.common import *
